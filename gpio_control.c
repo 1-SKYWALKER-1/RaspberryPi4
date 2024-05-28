@@ -4,12 +4,14 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <time.h>
 
 #define BUTTON_GPIO "534"
 #define LED1_GPIO "529"
 #define LED2_GPIO "539"
 #define LED3_GPIO "535"
 #define BLINK_DELAY_US 333333
+#define nanosInSec 1000000000
 
 #define OUTPUT "out"
 #define INPUT "in"
@@ -87,7 +89,21 @@ void cleanUp(const char pin[]) {
     fwrite(pin, 1, strlen(pin), sysfs_unexport);
     fclose(sysfs_unexport);
 }
+void blinkLed(const char pin[], struct timespec *lastToggleTime) {
+    struct timespec currentTime;
+    clock_gettime(CLOCK_MONOTONIC, &currentTime);
 
+        int periodNs = nanosInSec / BLINK_DELAY_US;
+        long long elapsedNs = (currentTime.tv_sec - lastToggleTime->tv_sec) * nanosInSec +
+                              (currentTime.tv_nsec - lastToggleTime->tv_nsec);
+
+        if (elapsedNs >= periodNs) {
+            char currentValue[2];
+            snprintf(currentValue, sizeof(currentValue), "%d", !digitalRead(pin));
+            digitalWrite(pin, currentValue);
+            clock_gettime(CLOCK_MONOTONIC, lastToggleTime);
+        }
+}
 _Bool previous_button_state = false;
 uint8_t button_presed = 0;
 
@@ -104,6 +120,8 @@ int main() {
     pinMode(LED1_GPIO, OUTPUT);
     pinMode(LED3_GPIO, OUTPUT);
     pinMode(BUTTON_GPIO, INPUT);
+    struct timespec lastToggleTime;
+    clock_gettime(CLOCK_MONOTONIC, &lastToggleTime);
 
     while (1) {
         // Зчитуємо стан кнопки
@@ -121,30 +139,18 @@ int main() {
                 break;
             }
             case 1:{
-                digitalWrite(LED1_GPIO, HIGH);
-                usleep(BLINK_DELAY_US);
-                digitalWrite(LED1_GPIO, LOW);
-                usleep(BLINK_DELAY_US);
+                blinkLed(LED1_GPIO,&lastToggleTime);
                 break;
             }
             case 2:{
-                digitalWrite(LED1_GPIO, HIGH);
-                digitalWrite(LED2_GPIO, HIGH);
-                usleep(BLINK_DELAY_US);
-                digitalWrite(LED1_GPIO, LOW);
-                digitalWrite(LED2_GPIO, LOW);
-                usleep(BLINK_DELAY_US);
+                blinkLed(LED1_GPIO,&lastToggleTime);
+                blinkLed(LED2_GPIO,&lastToggleTime);
                 break;
             }
             case 3:{
-                digitalWrite(LED1_GPIO, HIGH);
-                digitalWrite(LED2_GPIO, HIGH);
-                digitalWrite(LED3_GPIO, HIGH);
-                usleep(BLINK_DELAY_US);
-                digitalWrite(LED1_GPIO, LOW);
-                digitalWrite(LED2_GPIO, LOW);
-                digitalWrite(LED3_GPIO, LOW);
-                usleep(BLINK_DELAY_US);
+                blinkLed(LED1_GPIO,&lastToggleTime);
+                blinkLed(LED2_GPIO,&lastToggleTime);
+                blinkLed(LED3_GPIO,&lastToggleTime);
                 break;
             }
             default:{

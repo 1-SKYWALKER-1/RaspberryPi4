@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <time.h>
 
 #define LED_PIN_1 17  // GPIO pin for the first LED
 #define LED_PIN_2 27  // GPIO pin for the second LED
@@ -16,13 +17,7 @@
 #define CONSUMER "Consumer"
 
 // Function to unexport GPIO pins
-void unexport_gpio(unsigned int pin) {
-    FILE *unexport_file = fopen("/sys/class/gpio/unexport", "w");
-    if (unexport_file) {
-        fprintf(unexport_file, "%d", pin);
-        fclose(unexport_file);
-    }
-}
+
 
 // Function to set up a GPIO line
 struct gpiod_line *setup_gpio_line(struct gpiod_chip *chip, unsigned int line_num, int direction, int value) {
@@ -48,7 +43,20 @@ struct gpiod_line *setup_gpio_line(struct gpiod_chip *chip, unsigned int line_nu
 
     return line;
 }
+void blinkLed(struct gpiod_line *line, struct timespec *lastToggleTime) {
+    struct timespec currentTime;
+    clock_gettime(CLOCK_MONOTONIC, &currentTime);
 
+    int periodNs = nanosInSec / BLINK_DELAY_US;
+    long long elapsedNs = (currentTime.tv_sec - lastToggleTime->tv_sec) * nanosInSec +
+                          (currentTime.tv_nsec - lastToggleTime->tv_nsec);
+
+    if (elapsedNs >= periodNs) {
+
+        gpiod_line_set_value(line, !gpiod_line_get_value(line));
+        clock_gettime(CLOCK_MONOTONIC, lastToggleTime);
+    }
+}
 _Bool previous_button_state = false;
 uint8_t button_presed = 0;
 
@@ -58,11 +66,11 @@ int main() {
 
 
     // Unexport GPIO pins to ensure they are free
-    unexport_gpio(LED_PIN_1);
-    unexport_gpio(LED_PIN_2);
-    unexport_gpio(LED_PIN_3);
-    unexport_gpio(BUTTON_PIN);
-
+    gpiod_line_release(led_line_1);
+    gpiod_line_release(led_line_2);
+    gpiod_line_release(led_line_3);
+    gpiod_line_release(button_line);
+    gpiod_chip_close(chip);
     // Open the GPIO chip (chip 0 is usually correct for Raspberry Pi)
     chip = gpiod_chip_open_by_number(0);
     if (!chip) {
@@ -99,30 +107,18 @@ int main() {
             break;
         }
         case 1:{
-            gpiod_line_set_value(led_line_1, 1);
-            usleep(BLINK_DELAY_US);
-            gpiod_line_set_value(led_line_1, 0);
-            usleep(BLINK_DELAY_US);
+            blinkLed(led_line_1,&lastToggleTime);
             break;
         }
         case 2:{
-            gpiod_line_set_value(led_line_1, 1);
-            gpiod_line_set_value(led_line_2, 1);
-            usleep(BLINK_DELAY_US);
-            gpiod_line_set_value(led_line_1, 0);
-            gpiod_line_set_value(led_line_2, 0);
-            usleep(BLINK_DELAY_US);
+            blinkLed(led_line_1,&lastToggleTime);
+            blinkLed(led_line_2,&lastToggleTime);
             break;
         }
         case 3:{
-            gpiod_line_set_value(led_line_1, 1);
-            gpiod_line_set_value(led_line_2, 1);
-            gpiod_line_set_value(led_line_3, 1);
-            usleep(BLINK_DELAY_US);
-            gpiod_line_set_value(led_line_1, 0);
-            gpiod_line_set_value(led_line_2, 0);
-            gpiod_line_set_value(led_line_3, 0);
-            usleep(BLINK_DELAY_US);
+            blinkLed(led_line_1,&lastToggleTime);
+            blinkLed(led_line_2,&lastToggleTime);
+            blinkLed(led_line_3,&lastToggleTime);
             break;
         }
         default:{
