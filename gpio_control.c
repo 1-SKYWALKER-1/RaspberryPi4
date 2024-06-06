@@ -10,7 +10,7 @@
 #define LED1_GPIO "529"
 #define LED2_GPIO "539"
 #define LED3_GPIO "535"
-#define BLINK_DELAY_US 333333
+#define BLINK_DELAY 3
 #define nanosInSec 1000000000
 
 #define OUTPUT "out"
@@ -93,7 +93,7 @@ void blinkLed(const char pin[], struct timespec *lastToggleTime) {
     struct timespec currentTime;
     clock_gettime(CLOCK_MONOTONIC, &currentTime);
 
-        int periodNs = nanosInSec / BLINK_DELAY_US;
+        int periodNs = nanosInSec / BLINK_DELAY;
         long long elapsedNs = (currentTime.tv_sec - lastToggleTime->tv_sec) * nanosInSec +
                               (currentTime.tv_nsec - lastToggleTime->tv_nsec);
 
